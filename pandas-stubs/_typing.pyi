@@ -34,6 +34,12 @@ from pandas._libs.tslibs import (
     Timedelta,
     Timestamp,
 )
+from pandas._libs import (
+    NaTType,
+)
+from pandas._libs.missing import (
+    NAType,
+)
 
 from pandas.core.dtypes.dtypes import (
     CategoricalDtype,
@@ -314,6 +320,8 @@ S1 = TypeVar(
     Interval[Timestamp],
     Interval[Timedelta],
     CategoricalDtype,
+    NaTType,
+    NAType,
 )
 T1 = TypeVar(
     "T1", str, int, np.int64, np.uint64, np.float64, float, np.dtype[np.generic]
