@@ -14,6 +14,7 @@ from typing import (
     TypedDict,
     TypeVar,
     Union,
+    NewType,
 )
 
 import numpy as np
@@ -57,6 +58,7 @@ NpDtype: TypeAlias = Union[
     str, np.dtype[np.generic], type[Union[str, complex, bool, object]]
 ]
 Dtype: TypeAlias = Union[ExtensionDtype, NpDtype]
+Dtypes: TypeAlias = NewType('Dtypes', Series)
 AstypeArg: TypeAlias = Union[ExtensionDtype, npt.DTypeLike]
 # DtypeArg specifies all allowable dtypes in a functions its dtype argument
 DtypeArg: TypeAlias = Union[Dtype, dict[Any, Dtype]]

@@ -63,6 +63,7 @@ from pandas._typing import (
     ColspaceArgType,
     CompressionOptions,
     Dtype,
+    Dtypes,
     FilePath,
     FillnaOptions,
     FloatFormatType,
@@ -1272,7 +1273,7 @@ class DataFrame(NDFrame, OpsMixin):
         self, cols: AnyArrayLike | list[HashableT] | tuple[HashableT, ...]
     ) -> None: ...
     @property
-    def dtypes(self) -> Series: ...
+    def dtypes(self) -> Dtypes: ...
     @property
     def empty(self) -> _bool: ...
     @property
@@ -1347,7 +1348,7 @@ class DataFrame(NDFrame, OpsMixin):
     ) -> DataFrame: ...
     def astype(
         self,
-        dtype: _str | Dtype | dict[_str, _str | Dtype],
+        dtype: _str | Dtype | Dtypes | dict[_str, _str | Dtype],
         copy: _bool = ...,
         errors: _str = ...,
     ) -> DataFrame: ...
