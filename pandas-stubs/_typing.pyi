@@ -15,6 +15,8 @@ from typing import (
     Protocol,
     TypedDict,
     TypeVar,
+    Union,
+    NewType,
 )
 
 import numpy as np
@@ -200,6 +202,8 @@ AstypeArg: TypeAlias = (
     | ExtensionDtype
     | type[object]
 )
+Dtype: TypeAlias = Union[ExtensionDtype, NpDtype]
+Dtypes: TypeAlias = NewType('Dtypes', Series)
 # DtypeArg specifies all allowable dtypes in a functions its dtype argument
 DtypeObj: TypeAlias = np.dtype[np.generic] | ExtensionDtype
 
