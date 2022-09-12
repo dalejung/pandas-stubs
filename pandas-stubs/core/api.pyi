@@ -20,6 +20,10 @@ from pandas.core.arrays.integer import (
     UInt32Dtype as UInt32Dtype,
     UInt64Dtype as UInt64Dtype,
 )
+from pandas.core.arrays.floating import (
+    Float32Dtype as Float32Dtype,
+    Float64Dtype as Float64Dtype,
+)
 from pandas.core.arrays.string_ import StringDtype as StringDtype
 from pandas.core.construction import array as array
 from pandas.core.frame import DataFrame as DataFrame

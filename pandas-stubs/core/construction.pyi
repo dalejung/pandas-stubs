@@ -12,13 +12,13 @@ from pandas._typing import (
 )
 
 from pandas.core.dtypes.dtypes import ExtensionDtype
-from pandas.core.dtypes.generic import ABCExtensionArray
+from pandas.core.arrays.base import ExtensionArray
 
 def array(
     data: Sequence[object] | AnyArrayLike | npt.ArrayLike,
     dtype: str | np.dtype | ExtensionDtype | None = ...,
     copy: bool = ...,
-) -> ABCExtensionArray: ...
+) -> ExtensionArray: ...
 def extract_array(obj, extract_numpy: bool = ...): ...
 def sanitize_array(
     data, index, dtype=..., copy: bool = ..., raise_cast_failure: bool = ...

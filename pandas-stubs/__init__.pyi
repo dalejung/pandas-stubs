@@ -30,6 +30,8 @@ from .core.api import (
     Float32Dtype as Float32Dtype,
     Float64Dtype as Float64Dtype,
     Float64Index as Float64Index,
+    Float32Dtype as Float32Dtype,
+    Float64Dtype as Float64Dtype,
     Grouper as Grouper,
     Index as Index,
     IndexSlice as IndexSlice,

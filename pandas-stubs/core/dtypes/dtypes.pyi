@@ -3,6 +3,8 @@ from typing import (
     Sequence,
 )
 
+import numpy as np
+
 from pandas.core.indexes.base import Index
 
 from pandas._libs.tslibs import (  # , timezones as timezones
@@ -31,6 +33,12 @@ class PandasExtensionDtype(ExtensionDtype):
     def __hash__(self) -> int: ...
     @classmethod
     def reset_cache(cls) -> None: ...
+
+
+class BaseMaskedDtype(ExtensionDtype):
+    @property
+    def numpy_dtype(self) -> np.dtype:
+        ...
 
 class CategoricalDtypeType(type): ...
 
