@@ -22,8 +22,13 @@ _ExtensionDtypeT = TypeVar("_ExtensionDtypeT", bound=ExtensionDtype)
 
 def register_extension_dtype(cls: type[_ExtensionDtypeT]) -> type[_ExtensionDtypeT]: ...
 
-class BaseMaskedDtype(ExtensionDtype): ...
+class BaseMaskedDtype(ExtensionDtype):
+    @property
+    def numpy_dtype(self) -> np.dtype:
+        ...
+
 class PandasExtensionDtype(ExtensionDtype): ...
+
 
 class CategoricalDtype(PandasExtensionDtype, ExtensionDtype):
     def __init__(
