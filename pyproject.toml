@@ -31,7 +31,7 @@ packages = [
 "Source Code" = "https://github.com/pandas-dev/pandas-stubs"
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.11"
+python = "^3.10"
 types-pytz = ">= 2022.1.1"
 
 [tool.poetry.dev-dependencies]
