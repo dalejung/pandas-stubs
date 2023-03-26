@@ -34,6 +34,7 @@ from pandas._typing import (
     ListLike,
     RandomState,
     Scalar,
+    PositionalIndexer,
 )
 
 AggScalar: TypeAlias = str | Callable[..., Any]
@@ -364,3 +365,9 @@ class DataFrameGroupBy(GroupBy):
         dropna: bool = ...,
     ) -> Series[float]: ...
     def __getattr__(self, name: str) -> SeriesGroupBy: ...
+
+    def aggnth(
+        self,
+        n: PositionalIndexer,
+        add_pos: bool = ...,
+    ) -> DataFrame | Series: ...
