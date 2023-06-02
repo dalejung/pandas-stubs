@@ -2,6 +2,7 @@ from collections.abc import Sequence
 
 import numpy as np
 import numpy.typing as npt
+from pandas.core.arrays.base import ExtensionArray
 from pandas.core.indexes.api import Index
 from pandas.core.series import Series
 
@@ -12,7 +13,6 @@ from pandas._typing import (
 )
 
 from pandas.core.dtypes.dtypes import ExtensionDtype
-from pandas.core.arrays.base import ExtensionArray
 
 def array(
     data: Sequence[object] | AnyArrayLike | npt.ArrayLike,

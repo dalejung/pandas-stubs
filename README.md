@@ -17,7 +17,7 @@ convention of providing stubs in a separate package, as specified in [PEP 561](h
 pandas.  In general, these stubs are narrower than what is possibly allowed by pandas,
 but follow a convention of suggesting best recommended practices for using pandas.
 
-The stubs are likely incomplete in terms of covering the published API of pandas.
+The stubs are likely incomplete in terms of covering the published API of pandas.  NOTE: The current 2.0.x releases of pandas-stubs do not support all of the new features of pandas 2.0.  See this [tracker](https://github.com/pandas-dev/pandas-stubs/issues/624) to understand the current compatibility with version 2.0.
 
 The stubs are tested with [mypy](http://mypy-lang.org/) and [pyright](https://github.com/microsoft/pyright#readme) and are currently shipped with the Visual Studio Code extension
 [pylance](https://github.com/microsoft/pylance-release#readme).
@@ -149,7 +149,7 @@ The <https://github.com/pandas-dev/pandas/> project has type declarations for so
 
 The <https://github.com/pandas-dev/pandas-stubs/> project provides type declarations for the pandas _public_ API.  The philosophy of these stubs can be found at <https://github.com/pandas-dev/pandas-stubs/blob/main/docs/philosophy.md/>. While it would be ideal if the `pyi` files in this project would be part of the `pandas` distribution, this would require consistency between the internal type declarations and the public declarations, and the scope of a project to create that consistency is quite large.  That is a long term goal.  Finally, another goal is to do more frequent releases of the pandas-stubs than is done for pandas, in order to make the stubs more useful.
 
-If issues are found with the public stubs, pull requests to correct those issues are welcome.  In addition, pull requests on the pandas repository to fix the same issue are welcome there as well.  However, since the goals of typing in the two projects are different (internal consistency vs. public usage), it may be a challenge to create consistent type declarations across both projects.  See <https://pandas.pydata.org/docs/development/contributing_codebase.html#type-hints/> for a discussion of typing standards used within the pandas code.
+If issues are found with the public stubs, pull requests to correct those issues are welcome.  In addition, pull requests on the pandas repository to fix the same issue are welcome there as well.  However, since the goals of typing in the two projects are different (internal consistency vs. public usage), it may be a challenge to create consistent type declarations across both projects.  See <https://pandas.pydata.org/docs/development/contributing_codebase.html#type-hints> for a discussion of typing standards used within the pandas code.
 
 ## Getting help
 

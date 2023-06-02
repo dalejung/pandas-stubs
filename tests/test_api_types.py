@@ -55,10 +55,7 @@ def test_is_categorical_dtype() -> None:
     check(assert_type(api.is_categorical_dtype(arr), bool), bool)
     check(assert_type(api.is_categorical_dtype(nparr), bool), bool)
     check(assert_type(api.is_categorical_dtype(dtylike), bool), bool)
-    check(
-        assert_type(api.is_categorical_dtype(dframe), bool),
-        bool,
-    )
+    check(assert_type(api.is_categorical_dtype(dframe), bool), bool)
     check(assert_type(api.is_categorical_dtype(ind), bool), bool)
     check(assert_type(api.is_categorical_dtype(ExtensionDtype), bool), bool)
 
@@ -127,10 +124,7 @@ def test_is_datetime64tz_dtype() -> None:
     check(assert_type(api.is_datetime64tz_dtype(arr), bool), bool)
     check(assert_type(api.is_datetime64tz_dtype(nparr), bool), bool)
     check(assert_type(api.is_datetime64tz_dtype(dtylike), bool), bool)
-    check(
-        assert_type(api.is_datetime64tz_dtype(dframe), bool),
-        bool,
-    )
+    check(assert_type(api.is_datetime64tz_dtype(dframe), bool), bool)
     check(assert_type(api.is_datetime64tz_dtype(ind), bool), bool)
     check(assert_type(api.is_datetime64tz_dtype(ExtensionDtype), bool), bool)
 
@@ -212,10 +206,7 @@ def test_is_int64_dtype() -> None:
     check(assert_type(api.is_int64_dtype(arr), bool), bool)
     check(assert_type(api.is_int64_dtype(nparr), bool), bool)
     check(assert_type(api.is_int64_dtype(dtylike), bool), bool)
-    check(
-        assert_type(api.is_int64_dtype(dframe), bool),
-        bool,
-    )
+    check(assert_type(api.is_int64_dtype(dframe), bool), bool)
     check(assert_type(api.is_int64_dtype(ind), bool), bool)
     # check(assert_type(api.is_int64_dtype(ExtensionDtype), bool), bool) pandas GH 50923
 
@@ -261,10 +252,7 @@ def test_is_interval_dtype() -> None:
     check(assert_type(api.is_interval_dtype(nparr), bool), bool)
     check(assert_type(api.is_interval_dtype(dtylike), bool), bool)
     check(assert_type(api.is_interval_dtype(arr), bool), bool)
-    check(
-        assert_type(api.is_interval_dtype(dframe), bool),
-        bool,
-    )
+    check(assert_type(api.is_interval_dtype(dframe), bool), bool)
     check(assert_type(api.is_interval_dtype(ind), bool), bool)
     check(assert_type(api.is_interval_dtype(ExtensionDtype), bool), bool)
 
@@ -342,10 +330,7 @@ def test_is_period_dtype() -> None:
     check(assert_type(api.is_period_dtype(arr), bool), bool)
     check(assert_type(api.is_period_dtype(nparr), bool), bool)
     check(assert_type(api.is_period_dtype(dtylike), bool), bool)
-    check(
-        assert_type(api.is_period_dtype(dframe), bool),
-        bool,
-    )
+    check(assert_type(api.is_period_dtype(dframe), bool), bool)
     check(assert_type(api.is_period_dtype(ind), bool), bool)
     check(assert_type(api.is_period_dtype(ExtensionDtype), bool), bool)
 
@@ -485,3 +470,11 @@ def test_check_extension_dtypes() -> None:
     check_ext_dtype(pd.SparseDtype)
     check_ext_dtype(pd.Float32Dtype)
     check_ext_dtype(pd.Float64Dtype)
+
+
+def test_from_dataframe() -> None:
+    # GH 712
+    check(
+        assert_type(pd.api.interchange.from_dataframe(dframe), pd.DataFrame),
+        pd.DataFrame,
+    )

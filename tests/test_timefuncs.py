@@ -27,10 +27,8 @@ if TYPE_CHECKING:
 else:
     FulldatetimeDict = Any
 from tests import (
-    PD_LTE_15,
     TYPE_CHECKING_INVALID_USAGE,
     check,
-    pytest_warns_bounded,
 )
 
 from pandas.tseries.holiday import USFederalHolidayCalendar
@@ -50,13 +48,10 @@ if TYPE_CHECKING:
     )
 
 if TYPE_CHECKING:
-    from pandas.core.indexes.numeric import NumericIndex
+    from pandas.core.indexes.base import _IntIndexType
 
 else:
-    if not PD_LTE_15:
-        from pandas import Index as NumericIndex
-    else:
-        from pandas.core.indexes.numeric import NumericIndex
+    from pandas import Index as _IntIndexType
 
 # Separately define here so pytest works
 np_ndarray_bool = npt.NDArray[np.bool_]
@@ -317,18 +312,14 @@ def test_to_datetime_nat() -> None:
         ),
         pd.Timestamp,
     )
-    with pytest_warns_bounded(
-        UserWarning,
-        match="Could not infer format, so each element",
-        lower="1.5.99",
-    ):
-        check(
-            assert_type(
-                pd.to_datetime("not a date", errors="coerce"),
-                "Union[pd.Timestamp, NaTType]",
-            ),
-            NaTType,
-        )
+
+    check(
+        assert_type(
+            pd.to_datetime("not a date", errors="coerce"),
+            "Union[pd.Timestamp, NaTType]",
+        ),
+        NaTType,
+    )
 
 
 def test_series_dt_accessors() -> None:
@@ -370,6 +361,7 @@ def test_series_dt_accessors() -> None:
     check(assert_type(s0.dt.freq, Optional[str]), str)
     check(assert_type(s0.dt.isocalendar(), pd.DataFrame), pd.DataFrame)
     check(assert_type(s0.dt.to_period("D"), "PeriodSeries"), pd.Series, pd.Period)
+
     check(assert_type(s0.dt.to_pydatetime(), np.ndarray), np.ndarray, dt.datetime)
     s0_local = s0.dt.tz_localize("UTC")
     check(
@@ -453,7 +445,7 @@ def test_series_dt_accessors() -> None:
 def test_datetimeindex_accessors() -> None:
     # GH 194
     x = pd.DatetimeIndex(["2022-08-14", "2022-08-20"])
-    check(assert_type(x.month, NumericIndex), NumericIndex)
+    check(assert_type(x.month, "_IntIndexType"), _IntIndexType)
 
     i0 = pd.date_range(start="2022-06-01", periods=10)
     check(assert_type(i0, pd.DatetimeIndex), pd.DatetimeIndex, pd.Timestamp)
@@ -461,20 +453,20 @@ def test_datetimeindex_accessors() -> None:
     check(assert_type(i0.date, np.ndarray), np.ndarray, dt.date)
     check(assert_type(i0.time, np.ndarray), np.ndarray, dt.time)
     check(assert_type(i0.timetz, np.ndarray), np.ndarray, dt.time)
-    check(assert_type(i0.year, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.month, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.day, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.hour, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.minute, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.second, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.microsecond, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.nanosecond, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.dayofweek, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.day_of_week, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.weekday, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.dayofyear, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.day_of_year, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.quarter, NumericIndex), NumericIndex, np.integer)
+    check(assert_type(i0.year, "_IntIndexType"), _IntIndexType, np.int32)
+    check(assert_type(i0.month, "_IntIndexType"), _IntIndexType, np.int32)
+    check(assert_type(i0.day, "_IntIndexType"), _IntIndexType, np.int32)
+    check(assert_type(i0.hour, "_IntIndexType"), _IntIndexType, np.int32)
+    check(assert_type(i0.minute, "_IntIndexType"), _IntIndexType, np.int32)
+    check(assert_type(i0.second, "_IntIndexType"), _IntIndexType, np.int32)
+    check(assert_type(i0.microsecond, "_IntIndexType"), _IntIndexType, np.int32)
+    check(assert_type(i0.nanosecond, "_IntIndexType"), _IntIndexType, np.int32)
+    check(assert_type(i0.dayofweek, "_IntIndexType"), _IntIndexType, np.int32)
+    check(assert_type(i0.day_of_week, "_IntIndexType"), _IntIndexType, np.int32)
+    check(assert_type(i0.weekday, "_IntIndexType"), _IntIndexType, np.int32)
+    check(assert_type(i0.dayofyear, "_IntIndexType"), _IntIndexType, np.int32)
+    check(assert_type(i0.day_of_year, "_IntIndexType"), _IntIndexType, np.int32)
+    check(assert_type(i0.quarter, "_IntIndexType"), _IntIndexType, np.int32)
     check(assert_type(i0.is_month_start, npt.NDArray[np.bool_]), np.ndarray, np.bool_)
     check(assert_type(i0.is_month_end, npt.NDArray[np.bool_]), np.ndarray, np.bool_)
     check(assert_type(i0.is_quarter_start, npt.NDArray[np.bool_]), np.ndarray, np.bool_)
@@ -482,8 +474,8 @@ def test_datetimeindex_accessors() -> None:
     check(assert_type(i0.is_year_start, npt.NDArray[np.bool_]), np.ndarray, np.bool_)
     check(assert_type(i0.is_year_end, npt.NDArray[np.bool_]), np.ndarray, np.bool_)
     check(assert_type(i0.is_leap_year, npt.NDArray[np.bool_]), np.ndarray, np.bool_)
-    check(assert_type(i0.daysinmonth, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.days_in_month, NumericIndex), NumericIndex, np.integer)
+    check(assert_type(i0.daysinmonth, "_IntIndexType"), _IntIndexType, np.int32)
+    check(assert_type(i0.days_in_month, "_IntIndexType"), _IntIndexType, np.int32)
     check(assert_type(i0.tz, Optional[dt.tzinfo]), type(None))
     check(assert_type(i0.freq, Optional[BaseOffset]), BaseOffset)
     check(assert_type(i0.isocalendar(), pd.DataFrame), pd.DataFrame)
@@ -543,20 +535,20 @@ def test_periodindex_accessors() -> None:
     i0 = pd.period_range(start="2022-06-01", periods=10)
     check(assert_type(i0, pd.PeriodIndex), pd.PeriodIndex, pd.Period)
 
-    check(assert_type(i0.year, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.month, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.day, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.hour, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.minute, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.second, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.dayofweek, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.day_of_week, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.weekday, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.dayofyear, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.day_of_year, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.quarter, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.daysinmonth, NumericIndex), NumericIndex, np.integer)
-    check(assert_type(i0.days_in_month, NumericIndex), NumericIndex, np.integer)
+    check(assert_type(i0.year, "_IntIndexType"), _IntIndexType, np.integer)
+    check(assert_type(i0.month, "_IntIndexType"), _IntIndexType, np.integer)
+    check(assert_type(i0.day, "_IntIndexType"), _IntIndexType, np.integer)
+    check(assert_type(i0.hour, "_IntIndexType"), _IntIndexType, np.integer)
+    check(assert_type(i0.minute, "_IntIndexType"), _IntIndexType, np.integer)
+    check(assert_type(i0.second, "_IntIndexType"), _IntIndexType, np.integer)
+    check(assert_type(i0.dayofweek, "_IntIndexType"), _IntIndexType, np.integer)
+    check(assert_type(i0.day_of_week, "_IntIndexType"), _IntIndexType, np.integer)
+    check(assert_type(i0.weekday, "_IntIndexType"), _IntIndexType, np.integer)
+    check(assert_type(i0.dayofyear, "_IntIndexType"), _IntIndexType, np.integer)
+    check(assert_type(i0.day_of_year, "_IntIndexType"), _IntIndexType, np.integer)
+    check(assert_type(i0.quarter, "_IntIndexType"), _IntIndexType, np.integer)
+    check(assert_type(i0.daysinmonth, "_IntIndexType"), _IntIndexType, np.integer)
+    check(assert_type(i0.days_in_month, "_IntIndexType"), _IntIndexType, np.integer)
     check(assert_type(i0.freq, Optional[BaseOffset]), BaseOffset)
     check(assert_type(i0.strftime("%Y"), pd.Index), pd.Index, str)
     check(assert_type(i0.asfreq("D"), pd.PeriodIndex), pd.PeriodIndex, pd.Period)
@@ -643,7 +635,7 @@ def test_some_offsets() -> None:
         pd.DatetimeIndex,
     )
     # GH 320
-    tswm1 = pd.Timestamp("9/23/2022") + pd.offsets.WeekOfMonth(2, 3)
+    tswm1 = pd.Timestamp("9/23/2022") + pd.offsets.WeekOfMonth(2, True)
     check(assert_type(tswm1, pd.Timestamp), pd.Timestamp)
     tswm2 = pd.Timestamp("9/23/2022") + pd.offsets.LastWeekOfMonth(2, 3)
     check(assert_type(tswm2, pd.Timestamp), pd.Timestamp)
@@ -1079,6 +1071,20 @@ def test_timedelta_range() -> None:
         ),
         pd.TimedeltaIndex,
     )
+    check(
+        assert_type(
+            pd.timedelta_range("1 day", "10 days", freq=pd.Timedelta("2 days")),
+            pd.TimedeltaIndex,
+        ),
+        pd.TimedeltaIndex,
+    )
+    check(
+        assert_type(
+            pd.timedelta_range("1 day", "10 days", freq=dt.timedelta(days=2)),
+            pd.TimedeltaIndex,
+        ),
+        pd.TimedeltaIndex,
+    )
 
 
 def test_dateoffset_freqstr() -> None:
@@ -1135,3 +1141,14 @@ def test_timestamp_strptime_fails():
                 "%Y-%M-%D",  # type: ignore[arg-type] # pyright: ignore[reportGeneralTypeIssues]
             )
         )
+
+
+def test_weekofmonth_init():
+    # GH 629
+    check(
+        assert_type(
+            pd.offsets.WeekOfMonth(n=1, week=1, weekday=1, normalize=True),
+            pd.offsets.WeekOfMonth,
+        ),
+        pd.offsets.WeekOfMonth,
+    )

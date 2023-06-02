@@ -84,7 +84,8 @@ class FulldatetimeDict(YearMonthDayDict, total=False):
 # dtypes
 NpDtype: TypeAlias = str | np.dtype[np.generic] | type[str | complex | bool | object]
 Dtype: TypeAlias = ExtensionDtype | NpDtype
-DtypeArg: TypeAlias = Dtype | dict[Any, Dtype]
+DtypeArg: TypeAlias = Dtype | Mapping[Any, Dtype]
+DtypeBackend: TypeAlias = Literal["pyarrow", "numpy_nullable"]
 BooleanDtypeArg: TypeAlias = (
     # Builtin bool type and its string alias
     type[bool]  # noqa: Y030
@@ -279,6 +280,9 @@ ListLikeExceptSeriesAndStr = TypeVar(
     "ListLikeExceptSeriesAndStr", MutableSequence, np.ndarray, tuple, "Index"
 )
 ListLikeU: TypeAlias = Sequence | np.ndarray | Series | Index
+ListLikeHashable: TypeAlias = (
+    MutableSequence[HashableT] | np.ndarray | tuple[HashableT, ...] | range
+)
 StrLike: TypeAlias = str | np.str_
 IndexIterScalar: TypeAlias = (
     str
@@ -305,27 +309,37 @@ np_ndarray_str: TypeAlias = npt.NDArray[np.str_]
 
 IndexType: TypeAlias = slice | np_ndarray_anyint | Index | list[int] | Series[int]
 MaskType: TypeAlias = Series[bool] | np_ndarray_bool | list[bool]
+UsecolsArgType: TypeAlias = (
+    MutableSequence[str]
+    | tuple[str, ...]
+    | Sequence[int]
+    | Series
+    | Index
+    | np.ndarray
+    | Callable[[HashableT], bool]
+    | None
+)
 # Scratch types for generics
+
 S1 = TypeVar(
     "S1",
-    str,
-    bytes,
-    datetime.date,
-    datetime.time,
-    bool,
-    int,
-    float,
-    complex,
-    Timestamp,
-    Timedelta,
-    Period,
-    Interval[int],
-    Interval[float],
-    Interval[Timestamp],
-    Interval[Timedelta],
-    CategoricalDtype,
-    NaTType,
-    NAType,
+    bound=str
+    | bytes
+    | datetime.date
+    | datetime.time
+    | bool
+    | int
+    | float
+    | complex
+    | Dtype
+    | Timestamp
+    | Timedelta
+    | Period
+    | Interval[int]
+    | Interval[float]
+    | Interval[Timestamp]
+    | Interval[Timedelta]
+    | CategoricalDtype,
 )
 T1 = TypeVar(
     "T1", str, int, np.int64, np.uint64, np.float64, float, np.dtype[np.generic]
@@ -401,23 +415,63 @@ Function: TypeAlias = np.ufunc | Callable[..., Any]
 # shared HashableT and HashableT#. This one can be used if the identical
 # type is need in a function that uses GroupByObjectNonScalar
 _HashableTa = TypeVar("_HashableTa", bound=Hashable)
+ByT = TypeVar(
+    "ByT",
+    bound=str
+    | bytes
+    | datetime.date
+    | datetime.datetime
+    | datetime.timedelta
+    | np.datetime64
+    | np.timedelta64
+    | bool
+    | int
+    | float
+    | complex
+    | Timestamp
+    | Timedelta
+    | Scalar
+    | Period
+    | Interval[int]
+    | Interval[float]
+    | Interval[Timestamp]
+    | Interval[Timedelta]
+    | tuple,
+)
+# Use a distinct SeriesByT when using groupby with Series of known dtype.
+# Essentially, an intersection between Series S1 TypeVar, and ByT TypeVar
+SeriesByT = TypeVar(
+    "SeriesByT",
+    bound=str
+    | bytes
+    | datetime.date
+    | bool
+    | int
+    | float
+    | complex
+    | Timestamp
+    | Timedelta
+    | Period
+    | Interval[int]
+    | Interval[float]
+    | Interval[Timestamp]
+    | Interval[Timedelta],
+)
 GroupByObjectNonScalar: TypeAlias = (
     tuple
     | list[_HashableTa]
     | Function
     | list[Function]
-    | Series
     | list[Series]
     | np.ndarray
     | list[np.ndarray]
     | Mapping[Label, Any]
     | list[Mapping[Label, Any]]
-    | Index
     | list[Index]
     | Grouper
     | list[Grouper]
 )
-GroupByObject: TypeAlias = Scalar | GroupByObjectNonScalar
+GroupByObject: TypeAlias = Scalar | Index | GroupByObjectNonScalar | Series
 
 StataDateFormat: TypeAlias = Literal[
     "tc",

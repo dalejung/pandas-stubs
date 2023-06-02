@@ -11,16 +11,17 @@ from typing import (
 )
 
 from pandas.core.frame import DataFrame
-from pandas.core.indexes.base import Index
-from pandas.core.series import Series
 
+from pandas._libs.lib import NoDefault
 from pandas._typing import (
     CompressionOptions,
     CSVEngine,
     CSVQuoting,
     DtypeArg,
+    DtypeBackend,
+    ListLikeHashable,
     StorageOptions,
-    npt,
+    UsecolsArgType,
 )
 
 from pandas.io.parsers import TextFileReader
@@ -29,17 +30,12 @@ from pandas.io.parsers import TextFileReader
 def read_clipboard(
     sep: str | None = ...,
     *,
+    dtype_backend: DtypeBackend | NoDefault = ...,
     delimiter: str | None = ...,
     header: int | Sequence[int] | Literal["infer"] | None = ...,
-    names: list[str] = ...,
+    names: ListLikeHashable | None = ...,
     index_col: int | str | Sequence[str | int] | Literal[False] | None = ...,
-    usecols: list[str]
-    | Sequence[int]
-    | Series
-    | Index
-    | npt.NDArray
-    | Callable[[str], bool]
-    | None = ...,
+    usecols: UsecolsArgType = ...,
     dtype: DtypeArg | defaultdict | None = ...,
     engine: CSVEngine | None = ...,
     converters: dict[int | str, Callable[[str], Any]] = ...,
@@ -92,17 +88,12 @@ def read_clipboard(
 def read_clipboard(
     sep: str | None = ...,
     *,
+    dtype_backend: DtypeBackend | NoDefault = ...,
     delimiter: str | None = ...,
     header: int | Sequence[int] | Literal["infer"] | None = ...,
-    names: list[str] = ...,
+    names: ListLikeHashable | None = ...,
     index_col: int | str | Sequence[str | int] | Literal[False] | None = ...,
-    usecols: list[str]
-    | Sequence[int]
-    | Series
-    | Index
-    | npt.NDArray
-    | Callable[[str], bool]
-    | None = ...,
+    usecols: UsecolsArgType = ...,
     dtype: DtypeArg | defaultdict | None = ...,
     engine: CSVEngine | None = ...,
     converters: dict[int | str, Callable[[str], Any]] = ...,
@@ -155,17 +146,12 @@ def read_clipboard(
 def read_clipboard(
     sep: str | None = ...,
     *,
+    dtype_backend: DtypeBackend | NoDefault = ...,
     delimiter: str | None = ...,
     header: int | Sequence[int] | Literal["infer"] | None = ...,
-    names: list[str] = ...,
+    names: ListLikeHashable | None = ...,
     index_col: int | str | Sequence[str | int] | Literal[False] | None = ...,
-    usecols: list[str]
-    | Sequence[int]
-    | Series
-    | Index
-    | npt.NDArray
-    | Callable[[str], bool]
-    | None = ...,
+    usecols: UsecolsArgType = ...,
     dtype: DtypeArg | defaultdict | None = ...,
     engine: CSVEngine | None = ...,
     converters: dict[int | str, Callable[[str], Any]] = ...,

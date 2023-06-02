@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 from decimal import Decimal
+from enum import Enum
 from pathlib import Path
 import re
 from typing import (
@@ -28,6 +29,7 @@ from pandas.api.extensions import (
 from pandas.core.window import ExponentialMovingWindow
 import pytest
 from typing_extensions import (
+    Self,
     TypeAlias,
     assert_type,
 )
@@ -41,11 +43,9 @@ from pandas._typing import (
 )
 
 from tests import (
-    PD_LTE_15,
     PD_LTE_20,
     TYPE_CHECKING_INVALID_USAGE,
     check,
-    pytest_warns_bounded,
 )
 from tests.extension.decimal.array import DecimalDtype
 
@@ -227,6 +227,21 @@ def test_types_dropna() -> None:
     assert assert_type(s.dropna(axis=0, inplace=True), None) is None
 
 
+def test_pop() -> None:
+    # Testing pop support for hashable types
+    # Due to the bug in https://github.com/pandas-dev/pandas-stubs/issues/627
+    class MyEnum(Enum):
+        FIRST = "tayyar"
+        SECOND = "haydar"
+
+    s = pd.Series([3.2, 4.3], index=[MyEnum.FIRST, MyEnum.SECOND], dtype=float)
+    res = s.pop(MyEnum.FIRST)
+    check(assert_type(res, float), np.float64)
+
+    s2 = pd.Series([3, 5], index=["alibaba", "zuhuratbaba"], dtype=int)
+    check(assert_type(s2.pop("alibaba"), int), np.int_)
+
+
 def test_types_fillna() -> None:
     s = pd.Series([1, np.nan, np.nan, 3])
     check(assert_type(s.fillna(0), pd.Series), pd.Series)
@@ -280,30 +295,11 @@ def test_types_shift() -> None:
 
 def test_types_rank() -> None:
     s = pd.Series([1, 1, 2, 5, 6, np.nan])
-    if PD_LTE_15:
-        s[6] = "million"
-    with pytest_warns_bounded(
-        FutureWarning,
-        match="Dropping of nuisance columns",
-        upper="1.5.99",
-    ):
-        s.rank()
-    with pytest_warns_bounded(
-        FutureWarning, match="Dropping of nuisance columns", upper="1.5.99"
-    ):
-        s.rank(axis=0, na_option="bottom")
-    with pytest_warns_bounded(
-        FutureWarning, match="Dropping of nuisance columns", upper="1.5.99"
-    ):
-        s.rank(method="min", pct=True)
-    with pytest_warns_bounded(
-        FutureWarning, match="Dropping of nuisance columns", upper="1.5.99"
-    ):
-        s.rank(method="dense", ascending=True)
-    with pytest_warns_bounded(
-        FutureWarning, match="Calling Series.rank with numeric_only", upper="1.5.99"
-    ):
-        s.rank(method="first", numeric_only=True)
+    s.rank()
+    s.rank(axis=0, na_option="bottom")
+    s.rank(method="min", pct=True)
+    s.rank(method="dense", ascending=True)
+    s.rank(method="first", numeric_only=True)
     s2 = pd.Series([1, 1, 2, 5, 6, np.nan])
     s2.rank(method="first", numeric_only=True)
 
@@ -331,6 +327,36 @@ def test_types_sum() -> None:
     s.sum(skipna=False)
     s.sum(numeric_only=False)
     s.sum(min_count=4)
+
+    # Note:
+    # 1. Return types of `series.groupby(...).sum(...)` are NOT tested
+    #    (waiting for stubs).
+    # 2. Runtime return types of `series.sum(min_count=...)` are NOT
+    #    tested (because of potential `nan`s).
+
+    s0 = assert_type(pd.Series([1, 2, 3, np.nan]), "pd.Series")
+    check(assert_type(s0.sum(), "Any"), np.float64)
+    check(assert_type(s0.sum(skipna=False), "Any"), np.float64)
+    check(assert_type(s0.sum(numeric_only=False), "Any"), np.float64)
+    assert_type(s0.sum(min_count=4), "Any")
+
+    s1 = assert_type(pd.Series([False, True], dtype=bool), "pd.Series[bool]")
+    check(assert_type(s1.sum(), "int"), np.int64)
+    check(assert_type(s1.sum(skipna=False), "int"), np.int64)
+    check(assert_type(s1.sum(numeric_only=False), "int"), np.int64)
+    assert_type(s1.sum(min_count=4), "int")
+
+    s2 = assert_type(pd.Series([0, 1], dtype=int), "pd.Series[int]")
+    check(assert_type(s2.sum(), "int"), np.int64)
+    check(assert_type(s2.sum(skipna=False), "int"), np.int64)
+    check(assert_type(s2.sum(numeric_only=False), "int"), np.int64)
+    assert_type(s2.sum(min_count=4), "int")
+
+    s3 = assert_type(pd.Series([1, 2, 3, np.nan], dtype=float), "pd.Series[float]")
+    check(assert_type(s3.sum(), "float"), np.float64)
+    check(assert_type(s3.sum(skipna=False), "float"), np.float64)
+    check(assert_type(s3.sum(numeric_only=False), "float"), np.float64)
+    assert_type(s3.sum(min_count=4), "float")
 
 
 def test_types_cumsum() -> None:
@@ -540,6 +566,140 @@ def test_types_groupby_methods() -> None:
     check(assert_type(s.groupby(level=0).idxmin(), pd.Series), pd.Series)
 
 
+def test_groupby_result() -> None:
+    # GH 142
+    # since there are no columns in a Series, groupby name only works
+    # with a named index, we use a MultiIndex, so we can group by more
+    # than one level and test the non-scalar case
+    multi_index = pd.MultiIndex.from_tuples([(0, 0), (0, 1), (1, 0)], names=["a", "b"])
+    s = pd.Series([0, 1, 2], index=multi_index, dtype=int)
+    iterator = s.groupby(["a", "b"]).__iter__()
+    assert_type(iterator, Iterator[Tuple[Tuple, "pd.Series[int]"]])
+    index, value = next(iterator)
+    assert_type((index, value), Tuple[Tuple, "pd.Series[int]"])
+
+    check(assert_type(index, Tuple), tuple, np.integer)
+    check(assert_type(value, "pd.Series[int]"), pd.Series, np.integer)
+
+    iterator2 = s.groupby("a").__iter__()
+    assert_type(iterator2, Iterator[Tuple[Scalar, "pd.Series[int]"]])
+    index2, value2 = next(iterator2)
+    assert_type((index2, value2), Tuple[Scalar, "pd.Series[int]"])
+
+    check(assert_type(index2, Scalar), int)
+    check(assert_type(value2, "pd.Series[int]"), pd.Series, np.integer)
+
+    # GH 674
+    # grouping by pd.MultiIndex should always resolve to a tuple as well
+    iterator3 = s.groupby(multi_index).__iter__()
+    assert_type(iterator3, Iterator[Tuple[Tuple, "pd.Series[int]"]])
+    index3, value3 = next(iterator3)
+    assert_type((index3, value3), Tuple[Tuple, "pd.Series[int]"])
+
+    check(assert_type(index3, Tuple), tuple, int)
+    check(assert_type(value3, "pd.Series[int]"), pd.Series, np.integer)
+
+    # Want to make sure these cases are differentiated
+    for (k1, k2), g in s.groupby(["a", "b"]):
+        pass
+
+    for kk, g in s.groupby("a"):
+        pass
+
+    for (k1, k2), g in s.groupby(multi_index):
+        pass
+
+
+def test_groupby_result_for_scalar_indexes() -> None:
+    # GH 674
+    s = pd.Series([0, 1, 2], dtype=int)
+    dates = pd.Series(
+        [
+            pd.Timestamp("2020-01-01"),
+            pd.Timestamp("2020-01-15"),
+            pd.Timestamp("2020-02-01"),
+        ],
+        dtype="datetime64[ns]",
+    )
+
+    period_index = pd.PeriodIndex(dates, freq="M")
+    iterator = s.groupby(period_index).__iter__()
+    assert_type(iterator, Iterator[Tuple[pd.Period, "pd.Series[int]"]])
+    index, value = next(iterator)
+    assert_type((index, value), Tuple[pd.Period, "pd.Series[int]"])
+
+    check(assert_type(index, pd.Period), pd.Period)
+    check(assert_type(value, "pd.Series[int]"), pd.Series, np.integer)
+
+    dt_index = pd.DatetimeIndex(dates)
+    iterator2 = s.groupby(dt_index).__iter__()
+    assert_type(iterator2, Iterator[Tuple[pd.Timestamp, "pd.Series[int]"]])
+    index2, value2 = next(iterator2)
+    assert_type((index2, value2), Tuple[pd.Timestamp, "pd.Series[int]"])
+
+    check(assert_type(index2, pd.Timestamp), pd.Timestamp)
+    check(assert_type(value2, "pd.Series[int]"), pd.Series, np.integer)
+
+    tdelta_index = pd.TimedeltaIndex(dates - pd.Timestamp("2020-01-01"))
+    iterator3 = s.groupby(tdelta_index).__iter__()
+    assert_type(iterator3, Iterator[Tuple[pd.Timedelta, "pd.Series[int]"]])
+    index3, value3 = next(iterator3)
+    assert_type((index3, value3), Tuple[pd.Timedelta, "pd.Series[int]"])
+
+    check(assert_type(index3, pd.Timedelta), pd.Timedelta)
+    check(assert_type(value3, "pd.Series[int]"), pd.Series, np.integer)
+
+    intervals: list[pd.Interval[pd.Timestamp]] = [
+        pd.Interval(date, date + pd.DateOffset(days=1), closed="left") for date in dates
+    ]
+    interval_index = pd.IntervalIndex(intervals)
+    assert_type(interval_index, "pd.IntervalIndex[pd.Interval[pd.Timestamp]]")
+    iterator4 = s.groupby(interval_index).__iter__()
+    assert_type(
+        iterator4, Iterator[Tuple["pd.Interval[pd.Timestamp]", "pd.Series[int]"]]
+    )
+    index4, value4 = next(iterator4)
+    assert_type((index4, value4), Tuple["pd.Interval[pd.Timestamp]", "pd.Series[int]"])
+
+    check(assert_type(index4, "pd.Interval[pd.Timestamp]"), pd.Interval)
+    check(assert_type(value4, "pd.Series[int]"), pd.Series, np.integer)
+
+    for p, g in s.groupby(period_index):
+        pass
+
+    for dt, g in s.groupby(dt_index):
+        pass
+
+    for tdelta, g in s.groupby(tdelta_index):
+        pass
+
+    for interval, g in s.groupby(interval_index):
+        pass
+
+
+def test_groupby_result_for_ambiguous_indexes() -> None:
+    # GH 674
+    s = pd.Series([0, 1, 2], index=["a", "b", "a"], dtype=int)
+    # this will use pd.Index which is ambiguous
+    iterator = s.groupby(s.index).__iter__()
+    assert_type(iterator, Iterator[Tuple[Any, "pd.Series[int]"]])
+    index, value = next(iterator)
+    assert_type((index, value), Tuple[Any, "pd.Series[int]"])
+
+    check(assert_type(index, Any), str)
+    check(assert_type(value, "pd.Series[int]"), pd.Series, np.integer)
+
+    # categorical indexes are also ambiguous
+    categorical_index = pd.CategoricalIndex(s.index)
+    iterator2 = s.groupby(categorical_index).__iter__()
+    assert_type(iterator2, Iterator[Tuple[Any, "pd.Series[int]"]])
+    index2, value2 = next(iterator2)
+    assert_type((index2, value2), Tuple[Any, "pd.Series[int]"])
+
+    check(assert_type(index2, Any), str)
+    check(assert_type(value2, "pd.Series[int]"), pd.Series, np.integer)
+
+
 def test_types_groupby_agg() -> None:
     s = pd.Series([4, 2, 1, 8], index=["a", "b", "a", "b"])
     check(assert_type(s.groupby(level=0).agg("sum"), pd.Series), pd.Series)
@@ -570,6 +730,17 @@ def test_types_group_by_with_dropna_keyword() -> None:
     s.groupby(level=0, dropna=True).sum()
     s.groupby(level=0, dropna=False).sum()
     s.groupby(level=0).sum()
+
+
+def test_types_groupby_iter() -> None:
+    s = pd.Series([1, 1, 2], dtype=int)
+    series_groupby = pd.Series([True, True, False], dtype=bool)
+    first_group = next(iter(s.groupby(series_groupby)))
+    check(
+        assert_type(first_group[0], bool),
+        bool,
+    )
+    check(assert_type(first_group[1], "pd.Series[int]"), pd.Series, np.integer)
 
 
 def test_types_plot() -> None:
@@ -695,26 +866,9 @@ def test_types_transform() -> None:
 
 def test_types_describe() -> None:
     s = pd.Series([1, 2, 3, np.datetime64("2000-01-01")])
-    with pytest_warns_bounded(
-        DeprecationWarning, match="elementwise comparison failed", upper="1.5.99"
-    ):
-        s.describe()
-    with pytest_warns_bounded(
-        DeprecationWarning, match="elementwise comparison failed", upper="1.5.99"
-    ):
-        s.describe(percentiles=[0.5], include="all")
-    with pytest_warns_bounded(
-        DeprecationWarning, match="elementwise comparison failed", upper="1.5.99"
-    ):
-        s.describe(exclude=np.number)
-    if PD_LTE_15:
-        # datetime_is_numeric param added in 1.1.0
-        # https://pandas.pydata.org/docs/whatsnew/v1.1.0.html
-        # Remove in 2.0.0
-        with pytest_warns_bounded(
-            DeprecationWarning, match="elementwise comparison failed", upper="1.5.99"
-        ):
-            s.describe(datetime_is_numeric=True)
+    s.describe()
+    s.describe(percentiles=[0.5], include="all")
+    s.describe(exclude=np.number)
 
 
 def test_types_resample() -> None:
@@ -1367,25 +1521,29 @@ def test_bitwise_operators() -> None:
     check(assert_type(s ^ 3, "pd.Series[int]"), pd.Series, np.integer)
     check(assert_type(3 ^ s, "pd.Series[int]"), pd.Series, np.integer)
 
-    check(assert_type(s & [1, 2, 3, 4], "pd.Series[bool]"), pd.Series, np.bool_)
-    check(assert_type([1, 2, 3, 4] & s, "pd.Series[bool]"), pd.Series, np.bool_)
     check(assert_type(s & s2, "pd.Series[int]"), pd.Series, np.integer)
     check(assert_type(s2 & s, "pd.Series[int]"), pd.Series, np.integer)
 
-    check(assert_type(s | [1, 2, 3, 4], "pd.Series[bool]"), pd.Series, np.bool_)
-    check(assert_type([1, 2, 3, 4] | s, "pd.Series[bool]"), pd.Series, np.bool_)
     check(assert_type(s | s2, "pd.Series[int]"), pd.Series, np.integer)
     check(assert_type(s2 | s, "pd.Series[int]"), pd.Series, np.integer)
 
-    check(assert_type(s ^ [1, 2, 3, 4], "pd.Series[bool]"), pd.Series, np.bool_)
-    check(assert_type([1, 2, 3, 4] ^ s, "pd.Series[bool]"), pd.Series, np.bool_)
     check(assert_type(s ^ s2, "pd.Series[int]"), pd.Series, np.integer)
     check(assert_type(s2 ^ s, "pd.Series[int]"), pd.Series, np.integer)
+
+    check(assert_type(s & [1, 2, 3, 4], "pd.Series[bool]"), pd.Series, np.bool_)
+    check(assert_type([1, 2, 3, 4] & s, "pd.Series[bool]"), pd.Series, np.bool_)
+
+    check(assert_type(s | [1, 2, 3, 4], "pd.Series[bool]"), pd.Series, np.bool_)
+    check(assert_type([1, 2, 3, 4] | s, "pd.Series[bool]"), pd.Series, np.bool_)
+
+    check(assert_type(s ^ [1, 2, 3, 4], "pd.Series[bool]"), pd.Series, np.bool_)
+    check(assert_type([1, 2, 3, 4] ^ s, "pd.Series[bool]"), pd.Series, np.bool_)
 
 
 def test_logical_operators() -> None:
     # GH 380
     df = pd.DataFrame({"a": [1, 2, 3], "b": [2, 3, 4]})
+
     check(
         assert_type((df["a"] >= 2) & (df["b"] >= 2), "pd.Series[bool]"),
         pd.Series,
@@ -1402,36 +1560,42 @@ def test_logical_operators() -> None:
         np.bool_,
     )
     check(assert_type((df["a"] >= 2) & True, "pd.Series[bool]"), pd.Series, np.bool_)
-    check(
-        assert_type((df["a"] >= 2) & [True, False, True], "pd.Series[bool]"),
-        pd.Series,
-        np.bool_,
-    )
+
     check(assert_type((df["a"] >= 2) | True, "pd.Series[bool]"), pd.Series, np.bool_)
-    check(
-        assert_type((df["a"] >= 2) | [True, False, True], "pd.Series[bool]"),
-        pd.Series,
-        np.bool_,
-    )
+
     check(assert_type((df["a"] >= 2) ^ True, "pd.Series[bool]"), pd.Series, np.bool_)
+
+    check(assert_type(True & (df["a"] >= 2), "pd.Series[bool]"), pd.Series, np.bool_)
+
+    check(assert_type(True | (df["a"] >= 2), "pd.Series[bool]"), pd.Series, np.bool_)
+
+    check(assert_type(True ^ (df["a"] >= 2), "pd.Series[bool]"), pd.Series, np.bool_)
+
     check(
         assert_type((df["a"] >= 2) ^ [True, False, True], "pd.Series[bool]"),
         pd.Series,
         np.bool_,
     )
-    check(assert_type(True & (df["a"] >= 2), "pd.Series[bool]"), pd.Series, np.bool_)
+    check(
+        assert_type((df["a"] >= 2) & [True, False, True], "pd.Series[bool]"),
+        pd.Series,
+        np.bool_,
+    )
+    check(
+        assert_type((df["a"] >= 2) | [True, False, True], "pd.Series[bool]"),
+        pd.Series,
+        np.bool_,
+    )
     check(
         assert_type([True, False, True] & (df["a"] >= 2), "pd.Series[bool]"),
         pd.Series,
         np.bool_,
     )
-    check(assert_type(True | (df["a"] >= 2), "pd.Series[bool]"), pd.Series, np.bool_)
     check(
         assert_type([True, False, True] | (df["a"] >= 2), "pd.Series[bool]"),
         pd.Series,
         np.bool_,
     )
-    check(assert_type(True ^ (df["a"] >= 2), "pd.Series[bool]"), pd.Series, np.bool_)
     check(
         assert_type([True, False, True] ^ (df["a"] >= 2), "pd.Series[bool]"),
         pd.Series,
@@ -1452,12 +1616,14 @@ def test_pandera_generic() -> None:
     T = TypeVar("T")
 
     class MySeries(pd.Series, Generic[T]):
-        ...
+        def __new__(cls, *args, **kwargs) -> Self:
+            return object.__new__(cls)
 
     def func() -> MySeries[float]:
         return MySeries[float]([1, 2, 3])
 
-    func()
+    result = func()
+    assert result.iloc[1] == 2
 
 
 def test_change_to_dict_return_type() -> None:
@@ -1777,3 +1943,74 @@ def test_check_xs() -> None:
     s4 = pd.Series([1, 4])
     s4.xs(0, axis=0)
     check(assert_type(s4, pd.Series), pd.Series)
+
+
+def test_types_apply_set() -> None:
+    series_of_lists: pd.Series = pd.Series(
+        {"list1": [1, 2, 3], "list2": ["a", "b", "c"], "list3": [True, False, True]}
+    )
+    check(assert_type(series_of_lists.apply(lambda x: set(x)), pd.Series), pd.Series)
+
+
+def test_prefix_summix_axis() -> None:
+    s = pd.Series([1, 2, 3, 4])
+    check(assert_type(s.add_suffix("_item", axis=0), pd.Series), pd.Series)
+    check(assert_type(s.add_suffix("_item", axis="index"), pd.Series), pd.Series)
+    check(assert_type(s.add_prefix("_item", axis=0), pd.Series), pd.Series)
+    check(assert_type(s.add_prefix("_item", axis="index"), pd.Series), pd.Series)
+
+    if TYPE_CHECKING_INVALID_USAGE:
+        check(assert_type(s.add_prefix("_item", axis=1), pd.Series), pd.Series)  # type: ignore[arg-type] # pyright: ignore[reportGeneralTypeIssues]
+        check(assert_type(s.add_suffix("_item", axis="columns"), pd.Series), pd.Series)  # type: ignore[arg-type] # pyright: ignore[reportGeneralTypeIssues]
+
+
+def test_convert_dtypes_dtype_backend() -> None:
+    s = pd.Series([1, 2, 3, 4])
+    s1 = s.convert_dtypes(dtype_backend="numpy_nullable")
+    check(assert_type(s1, pd.Series), pd.Series)
+
+
+def test_apply_returns_none() -> None:
+    # GH 557
+    s = pd.Series([1, 2, 3])
+    check(assert_type(s.apply(lambda x: None), pd.Series), pd.Series)
+
+
+def test_loc_callable() -> None:
+    # GH 586
+    s = pd.Series([1, 2])
+    check(assert_type(s.loc[lambda x: x > 1], pd.Series), pd.Series)
+
+
+def test_to_json_mode() -> None:
+    s = pd.Series([1, 2, 3, 4])
+    result = s.to_json(orient="records", lines=True, mode="a")
+    result1 = s.to_json(orient="split", mode="w")
+    result2 = s.to_json(orient="table", mode="w")
+    result4 = s.to_json(orient="records", mode="w")
+    check(assert_type(result, str), str)
+    check(assert_type(result1, str), str)
+    check(assert_type(result2, str), str)
+    check(assert_type(result4, str), str)
+    if TYPE_CHECKING_INVALID_USAGE:
+        result3 = s.to_json(orient="records", lines=False, mode="a")  # type: ignore[call-overload] # pyright: ignore[reportGeneralTypeIssues]
+
+
+def test_groupby_diff() -> None:
+    # GH 658
+    s = pd.Series([1, 2, 3, np.nan])
+    check(assert_type(s.groupby(level=0).diff(), pd.Series), pd.Series)
+
+
+def test_to_string() -> None:
+    # GH 720
+    s = pd.Series([1])
+    check(
+        assert_type(
+            s.to_string(
+                index=False, header=False, length=False, dtype=False, name=False
+            ),
+            str,
+        ),
+        str,
+    )

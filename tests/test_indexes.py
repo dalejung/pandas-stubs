@@ -15,23 +15,26 @@ from typing_extensions import (
     assert_type,
 )
 
+from pandas._typing import Dtype  # noqa: F401
 from pandas._typing import Scalar
 
 from tests import (
-    PD_LTE_15,
     TYPE_CHECKING_INVALID_USAGE,
     check,
-    pytest_warns_bounded,
 )
 
 if TYPE_CHECKING:
-    from pandas.core.indexes.numeric import NumericIndex
-
+    from pandas.core.indexes.base import (
+        _ComplexIndexType,
+        _FloatIndexType,
+        _IntIndexType,
+    )
 else:
-    if not PD_LTE_15:
-        from pandas import Index as NumericIndex
-    else:
-        from pandas.core.indexes.numeric import NumericIndex
+    from pandas.core.indexes.base import (
+        Index as _ComplexIndexType,
+        Index as _FloatIndexType,
+        Index as _IntIndexType,
+    )
 
 
 def test_index_unique() -> None:
@@ -154,16 +157,16 @@ def test_types_to_numpy() -> None:
 def test_index_arithmetic() -> None:
     # GH 287
     idx = pd.Index([1, 2.2, 3], dtype=float)
-    check(assert_type(idx + 3, NumericIndex), NumericIndex)
-    check(assert_type(idx - 3, NumericIndex), NumericIndex)
-    check(assert_type(idx * 3, NumericIndex), NumericIndex)
-    check(assert_type(idx / 3, NumericIndex), NumericIndex)
-    check(assert_type(idx // 3, NumericIndex), NumericIndex)
-    check(assert_type(3 + idx, NumericIndex), NumericIndex)
-    check(assert_type(3 - idx, NumericIndex), NumericIndex)
-    check(assert_type(3 * idx, NumericIndex), NumericIndex)
-    check(assert_type(3 / idx, NumericIndex), NumericIndex)
-    check(assert_type(3 // idx, NumericIndex), NumericIndex)
+    check(assert_type(idx + 3, "_FloatIndexType"), _FloatIndexType, np.float64)
+    check(assert_type(idx - 3, "_FloatIndexType"), _FloatIndexType, np.float64)
+    check(assert_type(idx * 3, "_FloatIndexType"), _FloatIndexType, np.float64)
+    check(assert_type(idx / 3, "_FloatIndexType"), _FloatIndexType, np.float64)
+    check(assert_type(idx // 3, "_FloatIndexType"), _FloatIndexType, np.float64)
+    check(assert_type(3 + idx, "_FloatIndexType"), _FloatIndexType, np.float64)
+    check(assert_type(3 - idx, "_FloatIndexType"), _FloatIndexType, np.float64)
+    check(assert_type(3 * idx, "_FloatIndexType"), _FloatIndexType, np.float64)
+    check(assert_type(3 / idx, "_FloatIndexType"), _FloatIndexType, np.float64)
+    check(assert_type(3 // idx, "_FloatIndexType"), _FloatIndexType, np.float64)
 
 
 def test_index_relops() -> None:
@@ -198,33 +201,27 @@ def test_index_relops() -> None:
 
 
 def test_range_index_union():
-    with pytest_warns_bounded(
-        FutureWarning,
-        match="pandas.Int64Index",
-        upper="1.5.99",
-        upper_exception=AttributeError,
-    ):
-        check(
-            assert_type(
-                pd.RangeIndex(0, 10).union(pd.RangeIndex(10, 20)),
-                Union[pd.Index, pd.Int64Index, pd.RangeIndex],
-            ),
-            pd.RangeIndex,
-        )
-        check(
-            assert_type(
-                pd.RangeIndex(0, 10).union([11, 12, 13]),
-                Union[pd.Index, pd.Int64Index, pd.RangeIndex],
-            ),
-            pd.Int64Index,
-        )
-        check(
-            assert_type(
-                pd.RangeIndex(0, 10).union(["a", "b", "c"]),
-                Union[pd.Index, pd.Int64Index, pd.RangeIndex],
-            ),
-            pd.Index,
-        )
+    check(
+        assert_type(
+            pd.RangeIndex(0, 10).union(pd.RangeIndex(10, 20)),
+            Union[pd.Index, _IntIndexType, pd.RangeIndex],
+        ),
+        pd.RangeIndex,
+    )
+    check(
+        assert_type(
+            pd.RangeIndex(0, 10).union([11, 12, 13]),
+            Union[pd.Index, _IntIndexType, pd.RangeIndex],
+        ),
+        pd.Index,
+    )
+    check(
+        assert_type(
+            pd.RangeIndex(0, 10).union(["a", "b", "c"]),
+            Union[pd.Index, _IntIndexType, pd.RangeIndex],
+        ),
+        pd.Index,
+    )
 
 
 def test_interval_range():
@@ -296,6 +293,30 @@ def test_interval_range():
     )
     check(
         assert_type(
+            pd.interval_range(
+                pd.Timestamp(2000, 1, 1),
+                pd.Timestamp(2010, 1, 1),
+                freq=pd.Timedelta(days=30),
+            ),
+            "pd.IntervalIndex[pd.Interval[pd.Timestamp]]",
+        ),
+        pd.IntervalIndex,
+        pd.Interval,
+    )
+    check(
+        assert_type(
+            pd.interval_range(
+                pd.Timestamp(2000, 1, 1),
+                pd.Timestamp(2010, 1, 1),
+                freq=dt.timedelta(days=30),
+            ),
+            "pd.IntervalIndex[pd.Interval[pd.Timestamp]]",
+        ),
+        pd.IntervalIndex,
+        pd.Interval,
+    )
+    check(
+        assert_type(
             pd.interval_range(pd.Timestamp(2000, 1, 1), dt.datetime(2010, 1, 1), 5),
             "pd.IntervalIndex[pd.Interval[pd.Timestamp]]",
         ),
@@ -306,6 +327,26 @@ def test_interval_range():
     check(
         assert_type(
             pd.interval_range(pd.Timedelta("1D"), pd.Timedelta("10D")),
+            "pd.IntervalIndex[pd.Interval[pd.Timedelta]]",
+        ),
+        pd.IntervalIndex,
+        pd.Interval,
+    )
+    check(
+        assert_type(
+            pd.interval_range(
+                pd.Timedelta("1D"), pd.Timedelta("10D"), freq=pd.Timedelta("2D")
+            ),
+            "pd.IntervalIndex[pd.Interval[pd.Timedelta]]",
+        ),
+        pd.IntervalIndex,
+        pd.Interval,
+    )
+    check(
+        assert_type(
+            pd.interval_range(
+                pd.Timedelta("1D"), pd.Timedelta("10D"), freq=dt.timedelta(days=2)
+            ),
             "pd.IntervalIndex[pd.Interval[pd.Timedelta]]",
         ),
         pd.IntervalIndex,
@@ -854,3 +895,86 @@ def test_getitem() -> None:
     check(assert_type(i0, pd.Index), pd.Index)
     check(assert_type(i0[0], Scalar), str)
     check(assert_type(i0[[0, 2]], pd.Index), pd.Index, str)
+
+
+def test_multiindex_dtypes():
+    # GH-597
+    mi = pd.MultiIndex.from_tuples([(1, 2.0), (2, 3.0)], names=["foo", "bar"])
+    check(assert_type(mi.dtypes, "pd.Series[Dtype]"), pd.Series)
+
+
+def test_index_constructors():
+    # See if we can pick up the different index types in 2.0
+    # Eventually should be using a generic index
+    ilist = [1, 2, 3]
+    check(
+        assert_type(pd.Index(ilist, dtype="int"), _IntIndexType), pd.Index, np.integer
+    )
+    check(assert_type(pd.Index(ilist, dtype=int), _IntIndexType), pd.Index, np.integer)
+    check(assert_type(pd.Index(ilist, dtype=np.int8), _IntIndexType), pd.Index, np.int8)
+    check(
+        assert_type(pd.Index(ilist, dtype=np.int16), _IntIndexType), pd.Index, np.int16
+    )
+    check(
+        assert_type(pd.Index(ilist, dtype=np.int32), _IntIndexType), pd.Index, np.int32
+    )
+    check(
+        assert_type(pd.Index(ilist, dtype=np.int64), _IntIndexType), pd.Index, np.int64
+    )
+    check(
+        assert_type(pd.Index(ilist, dtype=np.uint8), _IntIndexType), pd.Index, np.uint8
+    )
+    check(
+        assert_type(pd.Index(ilist, dtype=np.uint16), _IntIndexType),
+        pd.Index,
+        np.uint16,
+    )
+    check(
+        assert_type(pd.Index(ilist, dtype=np.uint32), _IntIndexType),
+        pd.Index,
+        np.uint32,
+    )
+    check(
+        assert_type(pd.Index(ilist, dtype=np.uint64), _IntIndexType),
+        pd.Index,
+        np.uint64,
+    )
+
+    flist = [1.1, 2.2, 3.3]
+    check(
+        assert_type(pd.Index(flist, dtype="float"), _FloatIndexType),
+        pd.Index,
+        np.float64,
+    )
+    check(
+        assert_type(pd.Index(flist, dtype=float), _FloatIndexType), pd.Index, np.float64
+    )
+    check(
+        assert_type(pd.Index(flist, dtype=np.float32), _FloatIndexType),
+        pd.Index,
+        np.float32,
+    )
+    check(
+        assert_type(pd.Index(flist, dtype=np.float64), _FloatIndexType),
+        pd.Index,
+        np.float64,
+    )
+
+    clist = [1 + 1j, 2 + 2j, 3 + 4j]
+    check(
+        assert_type(pd.Index(clist, dtype="complex"), _ComplexIndexType),
+        pd.Index,
+        complex,
+    )
+    check(
+        assert_type(pd.Index(clist, dtype=complex), _ComplexIndexType),
+        pd.Index,
+        complex,
+    )
+
+    if TYPE_CHECKING_INVALID_USAGE:
+        # This should be detected by the type checker, but for it to work,
+        # we need to change the last overload of __new__ in core/indexes/base.pyi
+        # to specify all the possible dtype options.  For right now, we will leave the
+        # test here as a reminder that we would like this to be seen as incorrect usage.
+        pd.Index(flist, dtype=np.float16)

@@ -12,10 +12,12 @@ from typing import (
     Generator,
     List,
     Literal,
+    Tuple,
     Union,
 )
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from pandas import (
     DataFrame,
@@ -51,6 +53,7 @@ import sqlalchemy.orm.decl_api
 from typing_extensions import assert_type
 
 from tests import (
+    TYPE_CHECKING_INVALID_USAGE,
     WINDOWS,
     check,
 )
@@ -65,8 +68,6 @@ from pandas.io.pytables import (
 from pandas.io.sas.sas7bdat import SAS7BDATReader
 from pandas.io.sas.sas_xport import XportReader
 from pandas.io.stata import StataReader
-
-from . import lxml_skip
 
 DF = DataFrame({"a": [1, 2, 3], "b": [0.0, 0.0, 0.0]})
 CWD = os.path.split(os.path.abspath(__file__))[0]
@@ -90,13 +91,11 @@ def test_orc_path():
 @pytest.mark.skipif(WINDOWS, reason="ORC not available on windows")
 def test_orc_buffer():
     with ensure_clean() as path:
-        file_w = open(path, "wb")
-        check(assert_type(DF.to_orc(file_w), None), type(None))
-        file_w.close()
+        with open(path, "wb") as file_w:
+            check(assert_type(DF.to_orc(file_w), None), type(None))
 
-        file_r = open(path, "rb")
-        check(assert_type(read_orc(file_r), DataFrame), DataFrame)
-        file_r.close()
+        with open(path, "rb") as file_r:
+            check(assert_type(read_orc(file_r), DataFrame), DataFrame)
 
 
 @pytest.mark.skipif(WINDOWS, reason="ORC not available on windows")
@@ -111,7 +110,6 @@ def test_orc_bytes():
     check(assert_type(DF.to_orc(index=False), bytes), bytes)
 
 
-@lxml_skip
 def test_xml():
     with ensure_clean() as path:
         check(assert_type(DF.to_xml(path), None), type(None))
@@ -120,7 +118,6 @@ def test_xml():
             check(assert_type(read_xml(f), DataFrame), DataFrame)
 
 
-@lxml_skip
 def test_xml_str():
     with ensure_clean() as path:
         check(assert_type(DF.to_xml(), str), str)
@@ -206,6 +203,18 @@ def test_read_stata_iterator():
         check(assert_type(reader, StataReader), StataReader)
 
 
+def _true_if_b(s: str) -> bool:
+    return s == "b"
+
+
+def _true_if_greater_than_0(i: int) -> bool:
+    return i > 0
+
+
+def _true_if_first_param_is_head(t: Tuple[str, int]) -> bool:
+    return t[0] == "head"
+
+
 def test_clipboard():
     try:
         DF.to_clipboard()
@@ -218,6 +227,63 @@ def test_clipboard():
         assert_type(read_clipboard(dtype=defaultdict(lambda: "f8")), DataFrame),
         DataFrame,
     )
+    check(assert_type(read_clipboard(names=None), DataFrame), DataFrame)
+    check(
+        assert_type(read_clipboard(names=("first", "second"), header=0), DataFrame),
+        DataFrame,
+    )
+    check(assert_type(read_clipboard(names=range(2), header=0), DataFrame), DataFrame)
+    check(assert_type(read_clipboard(names=(1, "two"), header=0), DataFrame), DataFrame)
+    check(
+        assert_type(
+            read_clipboard(names=(("first", 1), ("last", 2)), header=0), DataFrame
+        ),
+        DataFrame,
+    )
+    check(
+        assert_type(read_clipboard(usecols=None), DataFrame),
+        DataFrame,
+    )
+    check(
+        assert_type(read_clipboard(usecols=["a"]), DataFrame),
+        DataFrame,
+    )
+    check(
+        assert_type(read_clipboard(usecols=(0,)), DataFrame),
+        DataFrame,
+    )
+    check(
+        assert_type(read_clipboard(usecols=range(1)), DataFrame),
+        DataFrame,
+    )
+    check(
+        assert_type(read_clipboard(usecols=_true_if_b), DataFrame),
+        DataFrame,
+    )
+    check(
+        assert_type(
+            read_clipboard(
+                names=[1, 2], usecols=_true_if_greater_than_0, header=0, index_col=0
+            ),
+            DataFrame,
+        ),
+        DataFrame,
+    )
+    check(
+        assert_type(
+            read_clipboard(
+                names=(("head", 1), ("tail", 2)),
+                usecols=_true_if_first_param_is_head,
+                header=0,
+                index_col=0,
+            ),
+            DataFrame,
+        ),
+        DataFrame,
+    )
+    if TYPE_CHECKING_INVALID_USAGE:
+        pd.read_clipboard(names="abcd")  # type: ignore[call-overload] # pyright: ignore[reportGeneralTypeIssues]
+        pd.read_clipboard(usecols="abcd")  # type: ignore[arg-type] # pyright: ignore[reportGeneralTypeIssues]
 
 
 def test_clipboard_iterator():
@@ -433,8 +499,8 @@ def test_json_chunk():
 def test_parquet():
     with ensure_clean() as path:
         check(assert_type(DF.to_parquet(path), None), type(None))
+        check(assert_type(DF.to_parquet(), bytes), bytes)
         check(assert_type(read_parquet(path), DataFrame), DataFrame)
-    check(assert_type(DF.to_parquet(), bytes), bytes)
 
 
 def test_parquet_options():
@@ -451,10 +517,10 @@ def test_feather():
         check(assert_type(DF.to_feather(path), None), type(None))
         check(assert_type(read_feather(path), DataFrame), DataFrame)
         check(assert_type(read_feather(path, columns=["a"]), DataFrame), DataFrame)
-    bio = io.BytesIO()
-    check(assert_type(DF.to_feather(bio), None), type(None))
-    bio.seek(0)
-    check(assert_type(read_feather(bio), DataFrame), DataFrame)
+    with io.BytesIO() as bio:
+        check(assert_type(DF.to_feather(bio), None), type(None))
+        bio.seek(0)
+        check(assert_type(read_feather(bio), DataFrame), DataFrame)
 
 
 def test_read_csv():
@@ -488,6 +554,10 @@ def test_read_csv_iterator():
         tfr2.close()
 
 
+def _true_if_col1(s: str) -> bool:
+    return s == "col1"
+
+
 def test_types_read_csv() -> None:
     df = pd.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})
     csv_df: str = df.to_csv()
@@ -517,6 +587,39 @@ def test_types_read_csv() -> None:
         df12: pd.DataFrame = pd.read_csv(path, usecols=("col1",))
         df13: pd.DataFrame = pd.read_csv(path, usecols=pd.Series(data=["col1"]))
         df14: pd.DataFrame = pd.read_csv(path, converters=None)
+        df15: pd.DataFrame = pd.read_csv(path, names=("first", "second"), header=0)
+        df16: pd.DataFrame = pd.read_csv(path, names=range(2), header=0)
+        df17: pd.DataFrame = pd.read_csv(path, names=(1, "two"), header=0)
+        df18: pd.DataFrame = pd.read_csv(
+            path,
+            names=(
+                (
+                    "first",
+                    1,
+                ),
+                ("last", 2),
+            ),
+            header=0,
+        )
+        df19: pd.DataFrame = pd.read_csv(path, usecols=None)
+        df20: pd.DataFrame = pd.read_csv(path, usecols=["col1"])
+        df21: pd.DataFrame = pd.read_csv(path, usecols=(0,))
+        df22: pd.DataFrame = pd.read_csv(path, usecols=range(1))
+        df23: pd.DataFrame = pd.read_csv(path, usecols=_true_if_col1)
+        df24: pd.DataFrame = pd.read_csv(
+            path, names=[1, 2], usecols=_true_if_greater_than_0, header=0, index_col=0
+        )
+        df25: pd.DataFrame = pd.read_csv(
+            path,
+            names=(("head", 1), ("tail", 2)),
+            usecols=_true_if_first_param_is_head,
+            header=0,
+            index_col=0,
+        )
+
+        if TYPE_CHECKING_INVALID_USAGE:
+            pd.read_csv(path, names="abcd")  # type: ignore[call-overload] # pyright: ignore[reportGeneralTypeIssues]
+            pd.read_csv(path, usecols="abcd")  # type: ignore[arg-type] # pyright: ignore[reportGeneralTypeIssues]
 
         tfr1: TextFileReader = pd.read_csv(path, nrows=2, iterator=True, chunksize=3)
         tfr1.close()
@@ -530,6 +633,21 @@ def test_types_read_csv() -> None:
         tfr4: TextFileReader = pd.read_csv(path, nrows=2, iterator=True)
         tfr4.close()
 
+    df_dates = pd.DataFrame(data={"col1": ["2023-03-15", "2023-04-20"]})
+
+    with ensure_clean() as path:
+        df_dates.to_csv(path)
+
+        df26: pd.DataFrame = pd.read_csv(
+            path, parse_dates=["col1"], date_format="%Y-%m-%d"
+        )
+        df27: pd.DataFrame = pd.read_csv(
+            path, parse_dates=["col1"], date_format={"col1": "%Y-%m-%d"}
+        )
+        df28: pd.DataFrame = pd.read_csv(
+            path, parse_dates=["col1"], date_format={1: "%Y-%m-%d"}
+        )
+
 
 def test_read_table():
     with ensure_clean() as path:
@@ -541,6 +659,101 @@ def test_read_table():
             assert_type(read_table(path, dtype=defaultdict(lambda: "f8")), DataFrame),
             DataFrame,
         )
+        check(
+            assert_type(
+                read_table(path, names=("first", "second"), header=0), DataFrame
+            ),
+            DataFrame,
+        )
+        check(
+            assert_type(read_table(path, names=range(2), header=0), DataFrame),
+            DataFrame,
+        )
+        check(
+            assert_type(read_table(path, names=(1, "two"), header=0), DataFrame),
+            DataFrame,
+        )
+        check(
+            assert_type(
+                read_table(
+                    path,
+                    names=(
+                        (
+                            "first",
+                            1,
+                        ),
+                        ("last", 2),
+                    ),
+                    header=0,
+                ),
+                DataFrame,
+            ),
+            DataFrame,
+        )
+        check(
+            assert_type(
+                read_table(path, usecols=None),
+                DataFrame,
+            ),
+            DataFrame,
+        )
+        check(
+            assert_type(
+                read_table(path, usecols=["a"]),
+                DataFrame,
+            ),
+            DataFrame,
+        )
+        check(
+            assert_type(
+                read_table(path, usecols=(0,)),
+                DataFrame,
+            ),
+            DataFrame,
+        )
+        check(
+            assert_type(
+                read_table(path, usecols=range(1)),
+                DataFrame,
+            ),
+            DataFrame,
+        )
+        check(
+            assert_type(
+                read_table(path, usecols=_true_if_b),
+                DataFrame,
+            ),
+            DataFrame,
+        )
+        check(
+            assert_type(
+                read_table(
+                    path,
+                    names=[1, 2],
+                    usecols=_true_if_greater_than_0,
+                    header=0,
+                    index_col=0,
+                ),
+                DataFrame,
+            ),
+            DataFrame,
+        )
+        check(
+            assert_type(
+                read_table(
+                    path,
+                    names=(("head", 1), ("tail", 2)),
+                    usecols=_true_if_first_param_is_head,
+                    header=0,
+                    index_col=0,
+                ),
+                DataFrame,
+            ),
+            DataFrame,
+        )
+        if TYPE_CHECKING_INVALID_USAGE:
+            pd.read_table(path, names="abcd")  # type: ignore[call-overload] # pyright: ignore[reportGeneralTypeIssues]
+            pd.read_table(path, usecols="abcd")  # type: ignore[arg-type] # pyright: ignore[reportGeneralTypeIssues]
 
 
 def test_read_table_iterator():
@@ -652,6 +865,83 @@ def test_read_excel() -> None:
             ),
             dict,
         )
+        check(
+            assert_type(pd.read_excel(path, names=("test",), header=0), pd.DataFrame),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(pd.read_excel(path, names=(1,), header=0), pd.DataFrame),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(
+                pd.read_excel(path, names=(("higher", "lower"),), header=0),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        ),
+        check(
+            assert_type(pd.read_excel(path, names=range(1), header=0), pd.DataFrame),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(pd.read_excel(path, usecols=None), pd.DataFrame),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(pd.read_excel(path, usecols=["A"]), pd.DataFrame),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(pd.read_excel(path, usecols=(0,)), pd.DataFrame),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(pd.read_excel(path, usecols=range(1)), pd.DataFrame),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(pd.read_excel(path, usecols=_true_if_b), pd.DataFrame),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(
+                pd.read_excel(
+                    path,
+                    names=[1, 2],
+                    usecols=_true_if_greater_than_0,
+                    header=0,
+                    index_col=0,
+                ),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(
+                pd.read_excel(
+                    path,
+                    names=(("head", 1), ("tail", 2)),
+                    usecols=_true_if_first_param_is_head,
+                    header=0,
+                    index_col=0,
+                ),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(
+                pd.read_excel(
+                    path,
+                    usecols="A",
+                ),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+        if TYPE_CHECKING_INVALID_USAGE:
+            pd.read_excel(path, names="abcd")  # type: ignore[call-overload] # pyright: ignore[reportGeneralTypeIssues]
 
 
 def test_read_excel_io_types() -> None:
@@ -801,6 +1091,7 @@ def test_read_sql_via_sqlalchemy_connection():
                 assert_type(read_sql("select * from test", con=conn), DataFrame),
                 DataFrame,
             )
+        engine.dispose()
 
 
 def test_read_sql_via_sqlalchemy_engine():
@@ -813,6 +1104,7 @@ def test_read_sql_via_sqlalchemy_engine():
             assert_type(read_sql("select * from test", con=engine), DataFrame),
             DataFrame,
         )
+        engine.dispose()
 
 
 def test_read_sql_generator():
@@ -874,7 +1166,6 @@ def test_read_sql_query_generator():
         con.close()
 
 
-@lxml_skip
 def test_read_html():
     check(assert_type(DF.to_html(), str), str)
     with ensure_clean() as path:
@@ -924,3 +1215,294 @@ def test_sqlalchemy_text() -> None:
                 assert_type(read_sql(sql_select, con=conn), DataFrame),
                 DataFrame,
             )
+        engine.dispose()
+
+
+def test_read_sql_dtype() -> None:
+    with ensure_clean() as path:
+        conn = sqlite3.connect(path)
+        df = pd.DataFrame(
+            data=[[0, "10/11/12"], [1, "12/11/10"]],
+            columns=["int_column", "date_column"],
+        )
+        check(assert_type(df.to_sql("test_data", con=conn), Union[int, None]), int)
+        check(
+            assert_type(
+                pd.read_sql(
+                    "SELECT int_column, date_column FROM test_data",
+                    con=conn,
+                    dtype=None,
+                ),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(
+                pd.read_sql(
+                    "SELECT int_column, date_column FROM test_data",
+                    con=conn,
+                    dtype={"int_column": int},
+                ),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+        check(assert_type(DF.to_sql("test", con=conn), Union[int, None]), int)
+
+        check(
+            assert_type(
+                read_sql("select * from test", con=conn, dtype=int),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+        conn.close()
+
+
+def test_read_sql_dtype_backend() -> None:
+    with ensure_clean() as path:
+        conn2 = sqlite3.connect(path)
+        check(assert_type(DF.to_sql("test", con=conn2), Union[int, None]), int)
+        check(
+            assert_type(
+                read_sql("select * from test", con=conn2, dtype_backend="pyarrow"),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(
+                read_sql(
+                    "select * from test", con=conn2, dtype_backend="numpy_nullable"
+                ),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+        conn2.close()
+
+
+def test_all_read_without_lxml_dtype_backend() -> None:
+    with ensure_clean() as path:
+        check(assert_type(DF.to_csv(path), None), type(None))
+        s1 = read_csv(path, iterator=True, dtype_backend="pyarrow")
+        check(assert_type(s1, TextFileReader), TextFileReader)
+        s1.close()
+
+        DF.to_string(path, index=False)
+        check(
+            assert_type(read_fwf(path, dtype_backend="pyarrow"), DataFrame), DataFrame
+        )
+
+        check(assert_type(DF.to_json(path), None), type(None))
+        check(
+            assert_type(read_json(path, dtype_backend="pyarrow"), DataFrame), DataFrame
+        )
+        check(
+            assert_type(read_json(path, dtype={"MatchID": str}), DataFrame), DataFrame
+        )
+
+    with ensure_clean() as path:
+        con = sqlite3.connect(path)
+        check(assert_type(DF.to_sql("test", con=con), Union[int, None]), int)
+        check(
+            assert_type(
+                read_sql_query(
+                    "select * from test",
+                    con=con,
+                    index_col="index",
+                    dtype_backend="pyarrow",
+                ),
+                DataFrame,
+            ),
+            DataFrame,
+        )
+        con.close()
+
+        if not WINDOWS:
+            check(assert_type(DF.to_orc(path), None), type(None))
+            check(
+                assert_type(read_orc(path, dtype_backend="numpy_nullable"), DataFrame),
+                DataFrame,
+            )
+        check(assert_type(DF.to_feather(path), None), type(None))
+        check(
+            assert_type(read_feather(path, dtype_backend="pyarrow"), DataFrame),
+            DataFrame,
+        )
+
+        check(
+            assert_type(
+                pd.to_numeric(
+                    [1.0, 2.0, "blerg"], errors="ignore", dtype_backend="numpy_nullable"
+                ),
+                npt.NDArray,
+            ),
+            np.ndarray,
+        )
+
+    with ensure_clean(".xlsx") as path:
+        as_str: str = path
+        DF.to_excel(path)
+        check(
+            assert_type(pd.read_excel(as_str, dtype_backend="pyarrow"), pd.DataFrame),
+            pd.DataFrame,
+        )
+
+    try:
+        DF.to_clipboard()
+    except errors.PyperclipException:
+        pytest.skip("clipboard not available for testing")
+    check(
+        assert_type(
+            read_clipboard(iterator=True, dtype_backend="pyarrow"), TextFileReader
+        ),
+        TextFileReader,
+    )
+
+    if TYPE_CHECKING:
+        # sqlite3 doesn't support read_table, which is required for this function
+        # Could only run in pytest if SQLAlchemy was installed
+        with ensure_clean() as path:
+            co1 = sqlite3.connect(path)
+            assert_type(DF.to_sql("test", con=co1), Union[int, None])
+            assert_type(
+                read_sql_table("test", con=co1, dtype_backend="numpy_nullable"),
+                DataFrame,
+            )
+            co1.close()
+
+
+def test_read_with_lxml_dtype_backend() -> None:
+    with ensure_clean() as path:
+        check(assert_type(DF.to_html(path), None), type(None))
+        check(
+            assert_type(
+                read_html(path, dtype_backend="numpy_nullable"), List[DataFrame]
+            ),
+            list,
+        )
+
+        check(assert_type(DF.to_xml(path), None), type(None))
+        check(
+            assert_type(read_xml(path, dtype_backend="pyarrow"), DataFrame), DataFrame
+        )
+
+
+def test_read_sql_dict_str_value_dtype() -> None:
+    # GH 676
+    with ensure_clean() as path:
+        con = sqlite3.connect(path)
+        check(assert_type(DF.to_sql("test", con), Union[int, None]), int)
+        check(
+            assert_type(
+                read_sql_query(
+                    "select * from test",
+                    con=con,
+                    index_col="index",
+                    dtype={"a": "int"},
+                ),
+                DataFrame,
+            ),
+            DataFrame,
+        )
+        con.close()
+
+
+def test_added_date_format() -> None:
+    with ensure_clean() as path:
+        df_dates = pd.DataFrame(
+            data={
+                "col1": ["2023-03-15", "2023-04-20"],
+            }
+        )
+        df_dates.to_csv(path)
+
+        check(
+            assert_type(
+                pd.read_table(
+                    path, sep=",", parse_dates=["col1"], date_format="%Y-%m-%d"
+                ),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(
+                pd.read_table(
+                    path,
+                    sep=",",
+                    parse_dates=["col1"],
+                    date_format={"col1": "%Y-%m-%d"},
+                ),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(
+                pd.read_table(
+                    path, sep=",", parse_dates=["col1"], date_format={0: "%Y-%m-%d"}
+                ),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+
+        check(
+            assert_type(
+                pd.read_fwf(path, date_format="%Y-%m-%d"),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(
+                pd.read_fwf(path, date_format={"col1": "%Y-%m-%d"}),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(
+                pd.read_fwf(path, date_format={0: "%Y-%m-%d"}),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+    with ensure_clean(".xlsx") as path:
+        check(
+            assert_type(
+                pd.DataFrame(
+                    data={
+                        "col1": ["2023-03-15", "2023-04-20"],
+                    }
+                ).to_excel(path),
+                None,
+            ),
+            type(None),
+        )
+        check(
+            assert_type(
+                pd.read_excel(path, parse_dates=["col1"], date_format={0: "%Y-%m-%d"}),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(
+                pd.read_excel(
+                    path, parse_dates=["col1"], date_format={"col1": "%Y-%m-%d"}
+                ),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
+        check(
+            assert_type(
+                pd.read_excel(path, parse_dates=["col1"], date_format="%Y-%m-%d"),
+                pd.DataFrame,
+            ),
+            pd.DataFrame,
+        )
